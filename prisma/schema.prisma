@@ -1,0 +1,34 @@
+// SoftwareProjectRisk - Prisma schema (PHASE 1: Project only)
+// หมายเหตุ: ID / naming ยังเป็นค่าที่เราเลือกเอง ยังไม่ได้ตรวจกับ CSMJU2030 Standards
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ProjectStatus {
+  PLANNING
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+model Project {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  startDate   DateTime      @db.Date
+  endDate     DateTime      @db.Date
+  budget      Decimal       @db.Decimal(14, 2)
+  teamSize    Int
+  status      ProjectStatus @default(PLANNING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("projects")
+}
