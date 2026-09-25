@@ -5,6 +5,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProjectsService } from './projects.service';
 
@@ -32,11 +33,11 @@ describe('ProjectsService', () => {
   let service: ProjectsService;
   const prisma = {
     project: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
+      create: jest.fn<() => Promise<unknown>>(),
+      findMany: jest.fn<() => Promise<unknown>>(),
+      findUnique: jest.fn<() => Promise<unknown>>(),
+      update: jest.fn<() => Promise<unknown>>(),
+      delete: jest.fn<() => Promise<unknown>>(),
     },
   };
 

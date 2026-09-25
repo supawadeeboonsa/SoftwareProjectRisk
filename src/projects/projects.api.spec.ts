@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
 import { randomUUID } from 'crypto';
 import { setupApp } from '../app.setup';
 import { PrismaService } from '../prisma/prisma.service';

@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { PrismaService } from '../prisma/prisma.service';
 import { TaskDependenciesService } from './task-dependencies.service';
 
@@ -10,8 +11,13 @@ const task = (id: string, projectId = 'p1') => ({ id, projectId });
 describe('TaskDependenciesService', () => {
   let service: TaskDependenciesService;
   const prisma = {
-    task: { findUnique: jest.fn() },
-    taskDependency: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), delete: jest.fn() },
+    task: { findUnique: jest.fn<(...args: any[]) => any>() },
+    taskDependency: {
+      findMany: jest.fn<(...args: any[]) => any>(),
+      findUnique: jest.fn<(...args: any[]) => any>(),
+      create: jest.fn<(...args: any[]) => any>(),
+      delete: jest.fn<(...args: any[]) => any>(),
+    },
   };
 
   beforeEach(async () => {
