@@ -1,4 +1,4 @@
-# SoftwareProjectRisk — Backend (Phase 1: Project, Phase 2: Task/Dependency/CPM)
+# SoftwareProjectRisk — Backend (Phase 1: Project, Phase 2: Task/Dependency/CPM, Phase 3: Risk)
 
 NestJS + TypeScript + REST + PostgreSQL + Prisma 7
 
@@ -88,3 +88,31 @@ Project Duration = MAX(EF ของทุก task) **ไม่ใช่** `Proje
 ส่วนนี้คือ Calculated Schedule) รองรับงานขนาน คืน error ที่ชัดเจน (ไม่คำนวณทับ) เมื่อ: มี cycle, duration ผิด,
 task id ซ้ำ หรือ dependency อ้างถึง task ที่ไม่มีอยู่ ยังเป็น Pure function เดี่ยวๆ **ยังไม่ได้ต่อเข้ากับ API**
 (routes ปัจจุบันไม่มี endpoint คำนวณ CPM — รอ Phase ที่ใช้งานจริง เช่น Simulation)
+
+## Phase 3 — Risk Management + Risk Calculator
+
+### API
+
+| Method | Path | ผลลัพธ์ |
+|---|---|---|
+| GET | /projects/:projectId/risks | 200 / 404 (project ไม่มีอยู่) |
+| POST | /projects/:projectId/risks | 201 / 400 / 404 |
+| GET | /risks/:id | 200 / 404 |
+| PATCH | /risks/:id | 200 / 400 / 404 |
+| DELETE | /risks/:id | 204 / 404 |
+
+### Risk Calculator (`src/risks/risk-calculator.ts`)
+Pure function ไม่พึ่ง Database: `calculateRiskScore(p, i) = p × i`, `calculateRiskLevel(score)`
+(1–4 LOW, 5–9 MEDIUM, 10–16 HIGH, 17–25 CRITICAL), `calculateRisk(p, i)` รวมทั้งสอง
+ทั้งหมด throw `RangeError` ถ้า probability/impact ไม่ใช่จำนวนเต็ม 1–5
+
+### Backend เป็น Source of Truth สำหรับ score/level
+- `CreateRiskDto`/`UpdateRiskDto` **ไม่มี field `score`/`level`** และ `ValidationPipe` ตั้ง `forbidNonWhitelisted`
+  (ดู `app.setup.ts`) ดังนั้นถ้า client ส่ง `score`/`level` มาใน body จะได้ **400** ทันที
+  (ข้อความ `"property score should not exist"`) ไม่ใช่แค่ถูกเพิกเฉย
+- ตอน `PATCH` ถ้าส่งแค่ `probability` หรือแค่ `impact` มาอย่างเดียว ระบบใช้ค่าที่เหลือจากของเดิมในฐานข้อมูล
+  แล้ว **คำนวณ score/level ใหม่เสมอ** (ไม่ใช่คำนวณเฉพาะตอนที่ทั้งคู่เปลี่ยน)
+
+### กฎ Risk
+`name` จำเป็น ไม่ว่าง, `probability`/`impact` จำนวนเต็ม 1–5 (reject 0, ติดลบ, ทศนิยม, string, >5),
+`description`/`mitigation`/`contingency`/`owner` optional, `projectId` (path) ต้องมี Project อยู่จริงก่อน

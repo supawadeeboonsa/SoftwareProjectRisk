@@ -24,6 +24,13 @@ enum TaskStatus {
   COMPLETED
 }
 
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 model Project {
   id          String        @id @default(uuid())
   name        String
@@ -37,6 +44,7 @@ model Project {
   updatedAt   DateTime      @updatedAt
 
   tasks Task[]
+  risks Risk[]
 
   @@map("projects")
 }
@@ -69,4 +77,23 @@ model TaskDependency {
 
   @@unique([taskId, dependsOnTaskId]) // กัน duplicate dependency ระดับฐานข้อมูล
   @@map("task_dependencies")
+}
+
+model Risk {
+  id          String    @id @default(uuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  probability Int // 1-5, ตรวจที่ DTO (RiskCalculator ตรวจซ้ำเป็นด่านสุดท้ายก่อนคำนวณ)
+  impact      Int // 1-5
+  score       Int // = probability * impact, backend คำนวณเสมอ (ดู src/risks/risk-calculator.ts)
+  level       RiskLevel // มาจาก score เสมอ, client กำหนดเองไม่ได้
+  mitigation  String?
+  contingency String?
+  owner       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("risks")
 }
