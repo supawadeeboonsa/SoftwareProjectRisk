@@ -18,6 +18,12 @@ enum ProjectStatus {
   CANCELLED
 }
 
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+}
+
 model Project {
   id          String        @id @default(uuid())
   name        String
@@ -30,5 +36,37 @@ model Project {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
+  tasks Task[]
+
   @@map("projects")
+}
+
+model Task {
+  id          String     @id @default(uuid())
+  projectId   String
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  duration    Int
+  status      TaskStatus @default(TODO)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // เลือก Cascade เพื่อความง่าย (ยังไม่ใช่ CSMJU2030 convention) — ลบ Task แล้ว dependency ที่เกี่ยวข้องถูกลบตาม
+  dependsOn  TaskDependency[] @relation("TaskDependsOn") // แถวที่ task นี้เป็นฝ่าย "ขึ้นกับ"
+  dependedBy TaskDependency[] @relation("TaskDependedBy") // แถวที่ task อื่น "ขึ้นกับ" task นี้
+
+  @@map("tasks")
+}
+
+model TaskDependency {
+  id              String   @id @default(uuid())
+  taskId          String
+  dependsOnTaskId String
+  task            Task     @relation("TaskDependsOn", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOnTask   Task     @relation("TaskDependedBy", fields: [dependsOnTaskId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@unique([taskId, dependsOnTaskId]) // กัน duplicate dependency ระดับฐานข้อมูล
+  @@map("task_dependencies")
 }
