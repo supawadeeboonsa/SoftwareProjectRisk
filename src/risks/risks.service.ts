@@ -26,7 +26,7 @@ export class RisksService {
     const { score, level } = calculateRisk(dto.probability, dto.impact);
 
     return this.run(() =>
-      this.risk.create({
+      this.prisma.risk.create({
         data: {
           projectId,
           name: dto.name,
@@ -46,7 +46,7 @@ export class RisksService {
   async findAllByProject(projectId: string) {
     await this.assertProjectExists(projectId);
     return this.run(() =>
-      this.risk.findMany({
+      this.prisma.risk.findMany({
         where: { projectId },
         orderBy: { createdAt: 'asc' },
       }),
@@ -70,7 +70,7 @@ export class RisksService {
     const { score, level } = calculateRisk(probability, impact);
 
     return this.run(() =>
-      this.risk.update({
+      this.prisma.risk.update({
         where: { id },
         data: {
           name: dto.name,
@@ -89,7 +89,7 @@ export class RisksService {
 
   async remove(id: string): Promise<void> {
     await this.getOrThrow(id);
-    await this.run(() => this.risk.delete({ where: { id } }));
+    await this.run(() => this.prisma.risk.delete({ where: { id } }));
   }
 
   // ---------- helpers ----------
@@ -104,17 +104,13 @@ export class RisksService {
   }
 
   private async getOrThrow(id: string) {
-    const risk = await this.run(() => this.risk.findUnique({ where: { id } }));
+    const risk = await this.run(() => this.prisma.risk.findUnique({ where: { id } }));
     if (!risk) {
       throw new NotFoundException(`Risk with id ${id} not found`);
     }
     return risk;
   }
 
-  /** Access the generated risk delegate even when Prisma's generated typings are stale. */
-  private get risk(): any {
-    return (this.prisma as any).risk;
-  }
 
   private async run<T>(fn: () => Promise<T>): Promise<T> {
     try {
