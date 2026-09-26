@@ -1,4 +1,4 @@
-# SoftwareProjectRisk — Backend (Phase 1: Project, Phase 2: Task/Dependency/CPM, Phase 3: Risk)
+# SoftwareProjectRisk — Backend (Phase 1: Project, Phase 2: Task/Dependency/CPM, Phase 3: Risk, Phase 4: Scenario/Simulation)
 
 NestJS + TypeScript + REST + PostgreSQL + Prisma 7
 
@@ -116,3 +116,57 @@ Pure function ไม่พึ่ง Database: `calculateRiskScore(p, i) = p × i
 ### กฎ Risk
 `name` จำเป็น ไม่ว่าง, `probability`/`impact` จำนวนเต็ม 1–5 (reject 0, ติดลบ, ทศนิยม, string, >5),
 `description`/`mitigation`/`contingency`/`owner` optional, `projectId` (path) ต้องมี Project อยู่จริงก่อน
+
+## Phase 4 — Scenario + Simulation
+
+### API
+
+| Method | Path | ผลลัพธ์ |
+|---|---|---|
+| GET/POST | /projects/:projectId/scenarios | 200/201, 404 |
+| GET | /scenarios/:id | 200 (รวม `changes`), 404 |
+| DELETE | /scenarios/:id | 204, 404 (cascade ลบ changes + simulations) |
+| GET/POST | /scenarios/:scenarioId/changes | 200/201, 400, 404 |
+| DELETE | /scenario-changes/:id | 204, 404 |
+| POST | /scenarios/:scenarioId/simulate | 201, 400 (ไม่มี change), 404, 409 (ข้อมูลอ้างอิงหายไปแล้ว) |
+| GET | /scenarios/:scenarioId/simulations | 200 (ประวัติการรัน) |
+| GET | /simulations/:id | 200, 404 |
+
+**หมายเหตุ:** ไม่มี `PATCH /scenarios/:id` เพราะ Business Logic Freeze ไม่ได้ระบุการแก้ไข Scenario หลังสร้าง
+(ต้องการแก้ ให้ลบ Scenario เดิมแล้วสร้างใหม่ หรือแจ้งถ้าต้องการเพิ่ม endpoint นี้)
+
+### Pure Logic (`src/simulation-engine/`, ไม่พึ่ง Database)
+- `team-size-elasticity.ts` — `D_new = D_old × ((1-p) + p×(T_old/T_new))`, ปัดด้วย `Math.round`, `p` default = 0.5
+- `budget-change.ts` — `change = after - before`, `changePercent = null` เมื่อ `before = 0`
+- `simulation-engine.ts` — ประกอบ CPM (Phase 2) + Risk Calculator (Phase 3) + สองไฟล์ข้างบนเข้าด้วยกัน
+  **ไม่สร้างสูตรใหม่ซ้ำซ้อน** ตามข้อกำหนด
+
+### ลำดับการคำนวณ Duration (ทางเลือกที่เราเลือกเอง — Freeze ไม่ได้ระบุละเอียดขนาดนี้)
+1. Apply `TASK_DURATION` changes เข้ากับ Task ที่เกี่ยวข้อง
+2. รัน CPM ใหม่ทั้งหมด (ตาม Freeze ข้อ 5 — ห้ามบวก duration ตรงๆ)
+3. ถ้ามี `TEAM_SIZE` change: ใช้ผลจากข้อ 2 เป็น `D_old` แล้วคูณ elasticity อีกที
+
+วิธีนี้ทำให้เปลี่ยน `TASK_DURATION` และ `TEAM_SIZE` พร้อมกันใน Scenario เดียวได้ถูกต้อง และให้ผลเหมือนกับ
+คูณที่ Project Duration ตรงๆ ทุกกรณีที่ไม่มี `TASK_DURATION` change
+
+### ⚠️ ตัวเลข Duration ตัวอย่างใน Business Logic Spec คำนวณผิด
+Spec ระบุ demo "57 วัน, team 5→3, p=0.5 → ~66.5 ≈ 67 วัน" แต่คำนวณจากสูตรจริงตามที่ Freeze ยืนยัน (p=0.5) แล้วได้:
+```
+57 × ((1-0.5) + 0.5×(5/3)) = 57 × (4/3) = 76 วัน (พอดี ไม่ต้องปัดเศษ)
+```
+โค้ดและเทสต์ทั้งหมดยึดผลจากสูตรจริง (**76** ไม่ใช่ 67) ตามกฎ "ห้าม hardcode ผลลัพธ์" — ยืนยันด้วย
+`simulation-engine.spec.ts` และ `simulations.api.spec.ts` (ยิง HTTP จริงจนจบ reproduce demo scenario เป๊ะ)
+
+### Validation (Freeze ข้อ 14, ตรวจที่ ScenarioChangesService ตาม factor)
+| Factor | ต้องมี | ต้องไม่มี | ช่วงค่า |
+|---|---|---|---|
+| `BUDGET` | — | taskId, riskId | >= 0 |
+| `TEAM_SIZE` | — | taskId, riskId | จำนวนเต็ม >= 1 |
+| `TASK_DURATION` | taskId (ต้องอยู่ project เดียวกับ scenario) | riskId | จำนวนเต็ม >= 1 |
+| `RISK_PROBABILITY` / `RISK_IMPACT` | riskId (ต้องอยู่ project เดียวกับ scenario) | taskId | จำนวนเต็ม 1–5 |
+
+### Simulation เป็น Virtual Calculation เท่านั้น
+`SimulationsService.simulate()` **ไม่แก้ไข** `Project`/`Task`/`Risk` ในฐานข้อมูลเลย (Freeze ข้อ 16) เป็นการอ่านค่า
+ปัจจุบันมาคำนวณแล้วบันทึกผลลงตาราง `simulations` เท่านั้น รันซ้ำกี่ครั้งก็ได้ผลเหมือนเดิมถ้าข้อมูลต้นทางไม่เปลี่ยน
+(Deterministic ตาม Freeze ข้อ 12) — ถ้า Task/Risk ที่ ScenarioChange อ้างถึงถูกลบไปหลังสร้าง Scenario แล้ว จะได้ 409
+ตอนสั่ง simulate (ไม่ใช่ error ทั่วไป เพราะเป็นความไม่สอดคล้องของข้อมูล ไม่ใช่ระบบเสีย)

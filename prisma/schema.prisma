@@ -31,6 +31,14 @@ enum RiskLevel {
   CRITICAL
 }
 
+enum ScenarioChangeFactor {
+  BUDGET
+  TEAM_SIZE
+  TASK_DURATION
+  RISK_PROBABILITY
+  RISK_IMPACT
+}
+
 model Project {
   id          String        @id @default(uuid())
   name        String
@@ -43,8 +51,9 @@ model Project {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  tasks Task[]
-  risks Risk[]
+  tasks     Task[]
+  risks     Risk[]
+  scenarios Scenario[]
 
   @@map("projects")
 }
@@ -63,6 +72,7 @@ model Task {
   // เลือก Cascade เพื่อความง่าย (ยังไม่ใช่ CSMJU2030 convention) — ลบ Task แล้ว dependency ที่เกี่ยวข้องถูกลบตาม
   dependsOn  TaskDependency[] @relation("TaskDependsOn") // แถวที่ task นี้เป็นฝ่าย "ขึ้นกับ"
   dependedBy TaskDependency[] @relation("TaskDependedBy") // แถวที่ task อื่น "ขึ้นกับ" task นี้
+  scenarioChanges ScenarioChange[] // ScenarioChange ที่ factor = TASK_DURATION ชี้มาที่ task นี้
 
   @@map("tasks")
 }
@@ -95,5 +105,75 @@ model Risk {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  scenarioChanges ScenarioChange[] // ScenarioChange ที่ factor = RISK_PROBABILITY/RISK_IMPACT ชี้มาที่ risk นี้
+
   @@map("risks")
+}
+
+model Scenario {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  changes     ScenarioChange[]
+  simulations Simulation[]
+
+  @@map("scenarios")
+}
+
+model ScenarioChange {
+  id         String               @id @default(uuid())
+  scenarioId String
+  scenario   Scenario             @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  factor     ScenarioChangeFactor
+
+  // ใช้เฉพาะ factor = TASK_DURATION (ต้องอยู่ project เดียวกับ scenario, ตรวจที่ service)
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  // ใช้เฉพาะ factor = RISK_PROBABILITY / RISK_IMPACT (ต้องอยู่ project เดียวกับ scenario, ตรวจที่ service)
+  riskId String?
+  risk   Risk?   @relation(fields: [riskId], references: [id], onDelete: Cascade)
+
+  // ค่าใหม่ที่ผู้ใช้กำหนด (before ดึงจากฐานข้อมูลจริงเสมอ ไม่รับจาก client — ดู SimulationsService)
+  // เก็บเป็น Decimal เดียวรองรับทั้งจำนวนเต็ม (team/duration/probability/impact) และทศนิยม (budget)
+  newValue Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+
+  @@map("scenario_changes")
+}
+
+model Simulation {
+  id         String   @id @default(uuid())
+  scenarioId String
+  scenario   Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  executedAt      DateTime @default(now())
+  formulaVersion  String   @default("1.0")
+
+  beforeDuration Int
+  afterDuration  Int
+  durationChange Int
+
+  beforeBudget Decimal @db.Decimal(14, 2)
+  afterBudget  Decimal @db.Decimal(14, 2)
+  budgetChange Decimal @db.Decimal(14, 2)
+  // null เมื่อ beforeBudget = 0 (กันหารด้วยศูนย์)
+  budgetChangePercent Decimal? @db.Decimal(10, 4)
+
+  beforeTeamSize Int
+  afterTeamSize  Int
+
+  // Risk ที่ถูกกระทบเท่านั้น (ไม่ใช่ทุก Risk ของ Project) — array เพราะ Scenario เดียวเปลี่ยนได้หลาย Risk
+  riskChanges Json
+
+  impactSummary  String[]
+  recommendation String[]
+
+  @@map("simulations")
 }

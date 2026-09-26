@@ -1,4 +1,3 @@
-import { describe, expect, it } from '@jest/globals';
 import { calculateRisk, calculateRiskLevel, calculateRiskScore } from './risk-calculator';
 
 describe('calculateRiskScore', () => {

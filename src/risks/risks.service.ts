@@ -58,10 +58,7 @@ export class RisksService {
   }
 
   async update(id: string, dto: UpdateRiskDto) {
-    const existing = (await this.getOrThrow(id)) as {
-      probability: number;
-      impact: number;
-    };
+    const existing = await this.getOrThrow(id);
 
     // recalculate ทุกครั้งที่ probability หรือ impact เปลี่ยน โดยใช้ค่าใหม่ถ้าส่งมา ไม่งั้นใช้ค่าเดิม
     // (เขียนแบบนี้เพื่อให้ recalculate ทุกครั้งเสมอ ไม่ใช่แค่ตอนที่ทั้งคู่เปลี่ยน — กันกรณีแก้แค่ค่าเดียว)
@@ -110,7 +107,6 @@ export class RisksService {
     }
     return risk;
   }
-
 
   private async run<T>(fn: () => Promise<T>): Promise<T> {
     try {

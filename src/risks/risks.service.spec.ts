@@ -1,6 +1,6 @@
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { PrismaService } from '../prisma/prisma.service';
 import { RisksService } from './risks.service';
 
@@ -17,16 +17,9 @@ const dbRisk = (over: Record<string, unknown> = {}) => ({
 
 describe('RisksService', () => {
   let service: RisksService;
-  type AsyncMock = jest.MockedFunction<(...args: any[]) => Promise<any>>;
-  const prisma = {
-    project: { findUnique: jest.fn() as AsyncMock },
-    risk: {
-      create: jest.fn() as AsyncMock,
-      findMany: jest.fn() as AsyncMock,
-      findUnique: jest.fn() as AsyncMock,
-      update: jest.fn() as AsyncMock,
-      delete: jest.fn() as AsyncMock,
-    },
+  const prisma: any = {
+    project: { findUnique: jest.fn() },
+    risk: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn(), delete: jest.fn() },
   };
 
   beforeEach(async () => {
@@ -48,8 +41,8 @@ describe('RisksService', () => {
     expect(prisma.risk.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ projectId: PROJECT_ID, probability: 3, impact: 4, score: 12, level: 'HIGH' }),
     });
-    expect((result as { score: number }).score).toBe(12);
-    expect((result as { level: string }).level).toBe('HIGH');
+    expect(result.score).toBe(12);
+    expect(result.level).toBe('HIGH');
   });
 
   it('create risk: client ส่ง score/level มาด้วย → ต้องถูกละเลย ใช้ค่าที่คำนวณเองเท่านั้น', async () => {
@@ -86,7 +79,7 @@ describe('RisksService', () => {
   it('get risk by id: สำเร็จ', async () => {
     prisma.risk.findUnique.mockResolvedValue(dbRisk());
     const result = await service.findOne(RISK_ID);
-    expect((result as { id: string }).id).toBe(RISK_ID);
+    expect(result.id).toBe(RISK_ID);
   });
 
   it('get risk by id: ไม่พบ → 404', async () => {
