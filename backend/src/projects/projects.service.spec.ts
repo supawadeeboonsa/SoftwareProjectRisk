@@ -10,7 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ProjectsService } from './projects.service';
 
 // ไม่โหลดไฟล์จริง เพราะต้องใช้ Prisma client ที่ generate แล้ว (Unit test ใช้ mock)
-jest.mock('../prisma/prisma.service', () => ({ PrismaService: class {} }));
+jest.mock('../prisma/prisma.service', () => ({ PrismaService: class { } }));
 
 const ID = '3f0c1c1e-6a53-4b7a-9c58-2b1f0d6f9a10';
 
@@ -33,11 +33,11 @@ describe('ProjectsService', () => {
   let service: ProjectsService;
   const prisma = {
     project: {
-      create: jest.fn<() => Promise<unknown>>(),
-      findMany: jest.fn<() => Promise<unknown>>(),
-      findUnique: jest.fn<() => Promise<unknown>>(),
-      update: jest.fn<() => Promise<unknown>>(),
-      delete: jest.fn<() => Promise<unknown>>(),
+      create: jest.fn<(args: unknown) => Promise<unknown>>(),
+      findMany: jest.fn<(args?: unknown) => Promise<unknown>>(),
+      findUnique: jest.fn<(args: unknown) => Promise<unknown>>(),
+      update: jest.fn<(args: unknown) => Promise<unknown>>(),
+      delete: jest.fn<(args: unknown) => Promise<unknown>>(),
     },
   };
 
