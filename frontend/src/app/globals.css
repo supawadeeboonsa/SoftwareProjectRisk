@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens: คัดลอกค่าจริงจาก csmju2030-standards/docs/ui-design-system.md §3-4
+ * (ระบบนี้ไม่มีสิทธิ์เข้าถึง @csmju2030/design-system package จริง เพราะต้อง auth ผ่าน
+ * GitHub Packages ของ Organization — จึงประกาศ token ชุดเดียวกันไว้ที่นี่แทนชั่วคราว
+ * ตาม csmju2030-standards §17.0 (ช่วงเปลี่ยนผ่านที่ยังไม่มี package)
+ */
+@theme {
+  /* สี — brand */
+  --color-primary-container: #2154d9;
+  --color-primary: #003cb4;
+  --color-primary-fixed: #dce1ff;
+  --color-on-primary-container: #d2daff;
+  --color-on-primary: #ffffff;
+  --color-secondary: #4e5d87;
+  --color-accent: #3b80f2;
+  --color-brand-navy: #16264d;
+  --color-brand-blue: #0d4fa8;
+
+  /* สี — พื้นผิว */
+  --color-background: #f8f9fa;
+  --color-surface: #f8f9fa;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f3f4f5;
+  --color-surface-container: #ededee;
+  --color-surface-variant: #e1e3e4;
+
+  /* สี — ข้อความ */
+  --color-on-surface: #191c1d;
+  --color-on-surface-variant: #434654;
+  --color-outline: #747686;
+  --color-outline-variant: #c4c5d7;
+
+  /* สี — สถานะ */
+  --color-success: #10b981;
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  /* ฟอนต์ */
+  --font-display: 'Plus Jakarta Sans', 'Noto Sans Thai', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Noto Sans Thai', ui-sans-serif, system-ui, sans-serif;
+
+  /* Type scale (ui-design-system.md §4.2) */
+  --text-display-lg: 48px;
+  --text-display-lg--line-height: 1.2;
+  --text-display-lg--font-weight: 800;
+  --text-headline-lg: 32px;
+  --text-headline-lg--line-height: 1.3;
+  --text-headline-lg--font-weight: 700;
+  --text-headline-md: 24px;
+  --text-headline-md--line-height: 1.4;
+  --text-headline-md--font-weight: 600;
+  --text-body-lg: 18px;
+  --text-body-lg--line-height: 1.6;
+  --text-body-md: 16px;
+  --text-body-md--line-height: 1.6;
+  --text-label-md: 14px;
+  --text-label-md--line-height: 1.2;
+  --text-label-md--font-weight: 600;
+  --text-label-sm: 12px;
+  --text-label-sm--line-height: 16px;
+  --text-label-sm--font-weight: 600;
+  --text-caption: 12px;
+  --text-caption--line-height: 1.2;
+}
+
+/* Gradient ของแบรนด์ — ประกาศเป็น class ตายตัว ห้ามเขียน gradient ใหม่เอง (§3.1) */
+.brand-gradient {
+  background: linear-gradient(135deg, #16264d 0%, #0d4fa8 100%);
+}
+.btn-gradient {
+  background: linear-gradient(90deg, #2154d9 0%, #3b80f2 100%);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-on-surface);
+  font-family: var(--font-body);
+}
+
+/* กันเบราว์เซอร์ตัดกลางคำภาษาไทย (§4.3 ข้อ 5) */
+* {
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+/* focus ring มาตรฐาน (§7.3, §12.1) */
+.focus-ring {
+  outline: none;
+}
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-primary-container);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

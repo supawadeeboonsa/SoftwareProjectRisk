@@ -1,0 +1,7 @@
+node_modules
+dist
+coverage
+.env
+# Prisma client ที่ generate ขึ้นมา (สร้างใหม่ด้วย npm run prisma:generate)
+src/generated
+*.tsbuildinfo
