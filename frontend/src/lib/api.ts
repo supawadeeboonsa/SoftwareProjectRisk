@@ -4,8 +4,57 @@ import type {
   UpdateProjectInput, UpdateRiskInput, UpdateTaskInput,
 } from '@/types/api';
 
-// จุดเดียวที่กำหนด base path — เรียกผ่าน rewrite ใน next.config.ts
+// Backend ใช้ชื่อ field แบบ snake_case แต่ Frontend ใช้ camelCase
+// แปลง response ที่จุดเดียว เพื่อให้ทุกหน้าใช้ TypeScript types ได้ตรงกัน
 const BASE = '/backend';
+
+const NUMBER_FIELDS = new Set([
+  'budget',
+  'team_size',
+  'duration',
+  'probability',
+  'impact',
+  'score',
+  'new_value',
+  'before_duration',
+  'after_duration',
+  'duration_change',
+  'before_budget',
+  'after_budget',
+  'budget_change',
+  'budget_change_percent',
+  'before_team_size',
+  'after_team_size',
+  'before_probability',
+  'before_impact',
+  'before_score',
+  'after_probability',
+  'after_impact',
+  'after_score',
+]);
+
+function snakeToCamel(key: string) {
+  return key.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
+}
+
+function normalizeResponse(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(normalizeResponse);
+  if (value === null || typeof value !== 'object') return value;
+
+  const result: Record<string, unknown> = {};
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    const nextKey = snakeToCamel(key);
+    const nextValue = normalizeResponse(raw);
+
+    if (NUMBER_FIELDS.has(key) && typeof nextValue === 'string' && nextValue !== '') {
+      const numberValue = Number(nextValue);
+      result[nextKey] = Number.isNaN(numberValue) ? nextValue : numberValue;
+    } else {
+      result[nextKey] = nextValue;
+    }
+  }
+  return result;
+}
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public details: string[] = []) {
@@ -13,7 +62,6 @@ export class ApiError extends Error {
   }
 }
 
-// Backend ตอบ error เป็นรูปแบบ NestJS: { statusCode, message: string | string[], error }
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   let res: Response;
   try {
@@ -29,8 +77,6 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
   if (res.status === 204) return undefined as T;
 
-  // อ่านเป็นข้อความก่อน แล้วลอง parse เป็น JSON — ถ้า Backend ล่ม Next.js proxy จะตอบ
-  // ข้อความธรรมดา (ไม่ใช่ JSON) ต้องไม่ทำให้ฝั่งเราพัง
   const text = await res.text();
   let data: { message?: string | string[] } | undefined;
   try {
@@ -40,7 +86,6 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   }
 
   if (!res.ok) {
-    // ตอบกลับที่ไม่ใช่ JSON + 5xx = proxy ต่อ Backend ไม่ได้ (Backend ไม่ทำงาน / พอร์ตผิด)
     if (data === undefined && res.status >= 500) {
       throw new ApiError(res.status, 'เชื่อมต่อ Backend ไม่ได้ กรุณาตรวจสอบว่า Backend ทำงานอยู่ที่พอร์ตใน API_URL');
     }
@@ -48,7 +93,8 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     const details = Array.isArray(msg) ? msg : msg ? [String(msg)] : [];
     throw new ApiError(res.status, details[0] ?? `เกิดข้อผิดพลาด (${res.status})`, details);
   }
-  return data as T;
+
+  return normalizeResponse(data) as T;
 }
 
 const get = <T>(p: string) => request<T>('GET', p);

@@ -1,6 +1,3 @@
-// SoftwareProjectRisk - Prisma schema (PHASE 1: Project only)
-// หมายเหตุ: ID / naming ยังเป็นค่าที่เราเลือกเอง ยังไม่ได้ตรวจกับ CSMJU2030 Standards
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -8,6 +5,124 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+model Project {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  budget      Decimal       @db.Decimal(14, 2)
+  status      ProjectStatus @default(PLANNING)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  endDate     DateTime      @map("end_date") @db.Date
+  startDate   DateTime      @map("start_date") @db.Date
+  teamSize    Int           @map("team_size")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  risks       Risk[]
+  scenarios   Scenario[]
+  tasks       Task[]
+
+  @@map("projects")
+}
+
+model Task {
+  id              String           @id @default(uuid())
+  name            String
+  description     String?
+  duration        Int
+  status          TaskStatus       @default(TODO)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  projectId       String           @map("project_id")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  scenarioChanges ScenarioChange[]
+  dependedBy      TaskDependency[] @relation("TaskDependedBy")
+  dependsOn       TaskDependency[] @relation("TaskDependsOn")
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("tasks")
+}
+
+model TaskDependency {
+  id              String   @id @default(uuid())
+  createdAt       DateTime @default(now()) @map("created_at")
+  dependsOnTaskId String   @map("depends_on_task_id")
+  taskId          String   @map("task_id")
+  dependsOnTask   Task     @relation("TaskDependedBy", fields: [dependsOnTaskId], references: [id], onDelete: Cascade)
+  task            Task     @relation("TaskDependsOn", fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, dependsOnTaskId])
+  @@map("task_dependencies")
+}
+
+model Risk {
+  id              String           @id @default(uuid())
+  name            String
+  description     String?
+  probability     Int
+  impact          Int
+  score           Int
+  level           RiskLevel
+  mitigation      String?
+  contingency     String?
+  owner           String?
+  createdAt       DateTime         @default(now()) @map("created_at")
+  projectId       String           @map("project_id")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  scenarioChanges ScenarioChange[]
+
+  @@map("risks")
+}
+
+model Scenario {
+  id          String           @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+  projectId   String           @map("project_id")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  changes     ScenarioChange[]
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  simulations Simulation[]
+
+  @@map("scenarios")
+}
+
+model ScenarioChange {
+  id         String               @id @default(uuid())
+  factor     ScenarioChangeFactor
+  createdAt  DateTime             @default(now()) @map("created_at")
+  newValue   Decimal              @map("new_value") @db.Decimal(14, 2)
+  riskId     String?              @map("risk_id")
+  scenarioId String               @map("scenario_id")
+  taskId     String?              @map("task_id")
+  risk       Risk?                @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  scenario   Scenario             @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  task       Task?                @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("scenario_changes")
+}
+
+model Simulation {
+  id                  String   @id @default(uuid())
+  recommendation      String[]
+  afterBudget         Decimal  @map("after_budget") @db.Decimal(14, 2)
+  afterDuration       Int      @map("after_duration")
+  afterTeamSize       Int      @map("after_team_size")
+  beforeBudget        Decimal  @map("before_budget") @db.Decimal(14, 2)
+  beforeDuration      Int      @map("before_duration")
+  beforeTeamSize      Int      @map("before_team_size")
+  budgetChange        Decimal  @map("budget_change") @db.Decimal(14, 2)
+  budgetChangePercent Decimal? @map("budget_change_percent") @db.Decimal(10, 4)
+  durationChange      Int      @map("duration_change")
+  executedAt          DateTime @default(now()) @map("executed_at")
+  formulaVersion      String   @default("1.0") @map("formula_version")
+  impactSummary       String[] @map("impact_summary")
+  riskChanges         Json     @map("risk_changes")
+  scenarioId          String   @map("scenario_id")
+  scenario            Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@map("simulations")
 }
 
 enum ProjectStatus {
@@ -37,137 +152,4 @@ enum ScenarioChangeFactor {
   TASK_DURATION
   RISK_PROBABILITY
   RISK_IMPACT
-}
-
-model Project {
-  id          String        @id @default(uuid())
-  name        String
-  description String?
-  startDate   DateTime      @map("start_date") @db.Date
-  endDate     DateTime      @map("end_date") @db.Date
-  budget      Decimal       @db.Decimal(14, 2)
-  teamSize    Int           @map("team_size")
-  status      ProjectStatus @default(PLANNING)
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
-
-  tasks     Task[]
-  risks     Risk[]
-  scenarios Scenario[]
-
-  @@map("projects")
-}
-
-model Task {
-  id          String     @id @default(uuid())
-  projectId   String     @map("project_id")
-  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name        String
-  description String?
-  duration    Int
-  status      TaskStatus @default(TODO)
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("updated_at")
-
-  dependsOn       TaskDependency[] @relation("TaskDependsOn")
-  dependedBy      TaskDependency[] @relation("TaskDependedBy")
-  scenarioChanges ScenarioChange[]
-
-  @@map("tasks")
-}
-
-model TaskDependency {
-  id              String   @id @default(uuid())
-  taskId          String   @map("task_id")
-  dependsOnTaskId String   @map("depends_on_task_id")
-  task            Task     @relation("TaskDependsOn", fields: [taskId], references: [id], onDelete: Cascade)
-  dependsOnTask   Task     @relation("TaskDependedBy", fields: [dependsOnTaskId], references: [id], onDelete: Cascade)
-  createdAt       DateTime @default(now()) @map("created_at")
-
-  @@unique([taskId, dependsOnTaskId])
-  @@map("task_dependencies")
-}
-
-model Risk {
-  id          String    @id @default(uuid())
-  projectId   String    @map("project_id")
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name        String
-  description String?
-  probability Int
-  impact      Int
-  score       Int
-  level       RiskLevel
-  mitigation  String?
-  contingency String?
-  owner       String?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-
-  scenarioChanges ScenarioChange[]
-
-  @@map("risks")
-}
-
-model Scenario {
-  id          String   @id @default(uuid())
-  projectId   String   @map("project_id")
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name        String
-  description String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  changes     ScenarioChange[]
-  simulations Simulation[]
-
-  @@map("scenarios")
-}
-
-model ScenarioChange {
-  id         String               @id @default(uuid())
-  scenarioId String               @map("scenario_id")
-  scenario   Scenario             @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
-  factor     ScenarioChangeFactor
-
-  taskId String? @map("task_id")
-  task   Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  riskId String? @map("risk_id")
-  risk   Risk?   @relation(fields: [riskId], references: [id], onDelete: Cascade)
-
-  newValue Decimal @map("new_value") @db.Decimal(14, 2)
-
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@map("scenario_changes")
-}
-
-model Simulation {
-  id         String   @id @default(uuid())
-  scenarioId String   @map("scenario_id")
-  scenario   Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
-
-  executedAt     DateTime @default(now()) @map("executed_at")
-  formulaVersion String   @default("1.0") @map("formula_version")
-
-  beforeDuration Int @map("before_duration")
-  afterDuration  Int @map("after_duration")
-  durationChange Int @map("duration_change")
-
-  beforeBudget Decimal @map("before_budget") @db.Decimal(14, 2)
-  afterBudget  Decimal @map("after_budget") @db.Decimal(14, 2)
-  budgetChange Decimal @map("budget_change") @db.Decimal(14, 2)
-
-  budgetChangePercent Decimal? @map("budget_change_percent") @db.Decimal(10, 4)
-
-  beforeTeamSize Int @map("before_team_size")
-  afterTeamSize  Int @map("after_team_size")
-
-  riskChanges Json @map("risk_changes")
-
-  impactSummary  String[] @map("impact_summary")
-  recommendation String[]
-
-  @@map("simulations")
 }
